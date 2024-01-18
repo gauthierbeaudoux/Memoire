@@ -1,6 +1,6 @@
 from math import comb
 
-n = 3
+n = 4
 
 def climbStairs(n: int) -> int:
     result = 0
