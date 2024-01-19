@@ -90,24 +90,24 @@ def payoff(W, K):
 
 def quantile(p,S0, r, d, sigma, T, K, n, N):
     Q = []
-    M = 100000//N
+    M = 1000000//N
     for _ in tqdm(range(M)):
         payoffs = []
         for _ in range(N):
-            payoffs.append((payoff(black_scholes(S0, n, T, r, d, sigma), K)-19.44)/8.18)
+            payoffs.append(payoff(black_scholes(S0, n, T, r, d, sigma), K))
         payoffs.sort()
         Q.append(payoffs[int(N*p)-1])
     return np.mean(Q)
 
 Q = []
-
-for k in range(1,21):
-    Q.append(19.44+8.18*quantile(0.95, 100, 0.05, 0.03, 0.1, 1, 103, 1, 100*k)/np.sqrt(100*k))
+"""
+for k in range(1,11):
+    Q.append(quantile(0.95, 100, 0.05, 0.03, 0.1, 1, 103, 1, 1000*k))
 
     
-plt.plot([100*k for k in range(1,21)], Q)
+plt.plot([1000*k for k in range(1,11)], Q)
 plt.show()
-
+"""
 def price(S0, r, d, sigma, T, K, n, N):
     payoffs = []
     for _ in tqdm(range(N)):
@@ -139,7 +139,15 @@ for N in [M*k for k in range(1,11)]:
 plt.plot([M*k for k in range(1,11)], MU)
 plt.show()
 """
-#print(price(100, 0.05, 0.03, 0.1, 1, 103, 1000, 100))
+T = []
+
+for k in range(1,11):
+    t = time()
+    print(price(100, 0.05, 0.03, 0.1, 1, 103, 1, 10000*k))
+    T.append(time()-t)
+
+plt.plot([10000*k for k in range(1,11)], T)
+plt.show()
 
 def hist_payoff(S0, r, d, sigma, T, K, n, N):
     H = []
@@ -151,7 +159,7 @@ def hist_payoff(S0, r, d, sigma, T, K, n, N):
     return H
 """
 for k in range(1,11):
-    hist_payoff(100, 0.5, 0.3, 0.1, 1, 103, 1, 10000*k)
+    hist_payoff(100, 0.5, 0.3, 0.1, 1, 103, 1, 1000*k)
 """
     
 #hist_payoff(100, 0.5, 0.3, 0.1, 1, 103, 1000, 1000)
