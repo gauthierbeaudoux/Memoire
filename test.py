@@ -55,7 +55,7 @@ def payoff(S, K, type_payoff):
 
 def prix_instant_initial(S0, n, T, r, d, sigma, nb_simulations, K, type_payoff):
     H = 0
-    for _ in range(nb_simulations):
+    for _ in tqdm(range(nb_simulations)):
         S = black_scholes(S0, n, T, r, d, sigma)
         H += payoff(S,K,type_payoff)
     esperance_payoff = H/nb_simulations
@@ -68,12 +68,10 @@ d = 0.03
 K = 103
 T = 1
 n = 3
-nb_simulations = [100*i for i in range(1,100)]
+nb_simulations = 1_000_000
 
-liste_prix = []
-for nb_simu in tqdm(nb_simulations):
-    liste_prix.append(prix_instant_initial(S0, n, T, r, d, sigma, nb_simu, K, "Call asiatique"))
+print(prix_instant_initial(S0, n, T, r, d, sigma, nb_simulations, K, "Call asiatique"))
 
-print(liste_prix[-1])
-plt.plot(nb_simulations, liste_prix)
-plt.show()
+
+# plt.plot(nb_simulations, liste_prix)
+# plt.show()

@@ -11,7 +11,7 @@ def price_call_euro(S0, r, d, sigma, T, t, K):
     d2 = d1 - sigma*sqrt(T-t)
     return S0*exp(-d*(T-t))*norm.cdf(d1)-K*exp(-r*(T-t))*norm.cdf(d2)
 
-print(price_call_euro(100, 0.05, 0.03, 0.1, 1, 0.5, 103))
+# print(price_call_euro(100, 0.05, 0.03, 0.1, 1, 0.5, 103))
 
 def mouvement_brownien(n, T, x0, r, sigma):
     h = T/n
@@ -29,9 +29,9 @@ def black_scholes(S0, n, T, r, d, sigma):
     h = T/n
     return [S0*np.exp((r - d - sigma**2/2)*(t*h) + sigma*W[t]) for t in range(n+1)]
 
-for _ in range(10):
-    plt.plot(black_scholes(100, 1000, 1, 0.05, 0.03, 0.1))
-plt.show()
+# for _ in range(10):
+#     plt.plot(black_scholes(100, 1000, 1, 0.05, 0.03, 0.1))
+# plt.show()
 
 def payoff(W, K):
     return max(W[-1]-K, 0)
@@ -124,5 +124,5 @@ def price_fast(S0, r, d, sigma, T, K, n, N):
     new_K /= N
     return price_call_euro(S0/n, r, d, sigma, T, T-T/n, new_K)
 
-print(price(100, 0.05, 0.03, 0.1, 1, 103, 2, 100000))
-print(price_fast(100, 0.05, 0.03, 0.1, 1, 103, 2, 100000))
+print(price(100, 0.05, 0.03, 0.1, 1, 103, 2, 100_000))
+print(price_fast(100, 0.05, 0.03, 0.1, 1, 103, 2, 100_000))
