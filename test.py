@@ -53,13 +53,18 @@ def payoff(S, K, type_payoff):
     else:
         raise ValueError
 
-def prix_instant_initial(S0, n, T, r, d, sigma, nb_simulations, K, type_payoff):
+def prix_instant_initial(S0, n, T, r, d, sigma, nb_simulations, K, type_payoff, frequence_mesure=1000):
     H = 0
-    for _ in tqdm(range(nb_simulations)):
+    prix = []
+    iterations = []
+    for i in tqdm(range(1,nb_simulations+1)):
         S = black_scholes(S0, n, T, r, d, sigma)
         H += payoff(S,K,type_payoff)
-    esperance_payoff = H/nb_simulations
-    return np.exp(-r*T)*esperance_payoff
+        if i % frequence_mesure == 0:
+            esperance_payoff = H/i
+            prix.append(np.exp(-r*T)*esperance_payoff)
+            iterations.append(i)
+    return prix, iterations
 
 S0 = 100
 sigma = 0.1
@@ -70,8 +75,9 @@ T = 1
 n = 3
 nb_simulations = 1_000_000
 
-print(prix_instant_initial(S0, n, T, r, d, sigma, nb_simulations, K, "Call asiatique"))
+result, frequence  = prix_instant_initial(S0, n, T, r, d, sigma, nb_simulations, K, "Call asiatique")
 
-
-# plt.plot(nb_simulations, liste_prix)
-# plt.show()
+print(result[-1])
+# 1.2564532648137718 avec 1 million de simulations
+plt.plot(frequence, result)
+plt.show()
