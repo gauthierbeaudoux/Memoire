@@ -98,18 +98,21 @@ d = 0.03
 K = 103
 T = 1
 n = 12
-nb_simulations = 10**5
+nb_simulations = 10**4
 H = 80
 frequence_barriere = "M"
 
 
 result, frequence  = prix_instant_initial(S0, n, T, r, d, sigma,
-                    nb_simulations, K, "Call down and in",
-                    frequence_mesure=1,
+                    nb_simulations, K, "Call EU",
+                    frequence_mesure=50,
                     frequence_barriere=frequence_barriere,
                     valeur_barriere=H)
 
 print(result[-1])
 # 1.2564532648137718 avec 1 million de simulations, Call Asiatique
+# 3.441207795600795 avec 1 million de simu, Call EU
+# 3.4409126762138484 avec 1 million de simu, Call down and out
 plt.plot(frequence, result)
+plt.savefig("Call_EU.png")
 plt.show()
