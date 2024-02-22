@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from scipy.stats import qmc
 import scipy.stats as stats
+import timeit
+from numba import njit, jit
 
 
 
@@ -108,6 +110,7 @@ def halton(n, d=1):
     sampler = qmc.Halton(d, scramble=True)
     return sampler.random(n)
 
+
 def halton_norm(n, d=1):
     sampler = qmc.Halton(d, scramble=True)
     x_halton = sampler.random(n)
@@ -130,34 +133,72 @@ nb_simulations = 10**5
 H = 80
 frequence_barriere = "M"
 
-def autre_simul():
-    Z = funcs[method](M)
-    delta_St = nudt + volsdt*Z
-    ST = S0*np.exp(delta_St)
-    CT = np.maximum(0, ST - K)
-    C0 = np.exp(-r*T)*np.sum(CT)/M
-    prix = []
-    iterations = []
-    for i in tqdm(range(1,nb_simulations+1)):
-        if i % frequence_mesure == 0:
-            esperance_payoff = H/i
-            prix.append(np.exp(-r*T)*esperance_payoff)
-            iterations.append(i)
-    return prix, iterations
+
+def autre_simul(nb_simulations, S0, K, d, T):
+    #precompute constants
+    dt = T
+    nudt = (r - d - 0.5*sigma**2)*dt
+    volsdt = sigma*np.sqrt(dt)
+    liste_nb_simu = np.linspace(10,nb_simulations, 3)
+    result = []
+    for x in liste_nb_simu:
+        x = int(x)
+        # Z = np.random.normal(loc=0, scale=1, size=x)
+        Z = halton_norm(x)
+        delta_St = nudt + volsdt*Z
+        ST = S0*np.exp(delta_St)
+        CT = np.maximum(0, ST - K)
+        C0 = np.exp(-r*T)*np.sum(CT)/x
+        result.append(C0)
+        
+    return result, liste_nb_simu
+
+@jit
+def autre_simul_numba(nb_simulations, S0, K, d, T):
+    #precompute constants
+    dt = T
+    nudt = (r - d - 0.5*sigma**2)*dt
+    volsdt = sigma*np.sqrt(dt)
+    liste_nb_simu = np.linspace(10,nb_simulations, 3)
+    result = []
+    for x in liste_nb_simu:
+        x = int(x)
+        # Z = np.random.normal(loc=0, scale=1, size=x)
+        Z = halton_norm(x)
+        delta_St = nudt + volsdt*Z
+        ST = S0*np.exp(delta_St)
+        CT = np.maximum(0, ST - K)
+        C0 = np.exp(-r*T)*np.sum(CT)/x
+        result.append(C0)
+        
+    return result, liste_nb_simu
 
 
-result, iterations  = prix_instant_initial(S0, n, T, r, d, sigma,
-                                           nb_simulations, K, "Call EU",
-                                           frequence_mesure=50,
-                                           frequence_barriere=frequence_barriere,
-                                           valeur_barriere=H,
-                                           methode="Pseudo")
+# result, iterations  = prix_instant_initial(S0, n, T, r, d, sigma,
+#                                            nb_simulations, K, "Call EU",
+#                                            frequence_mesure=50,
+#                                            frequence_barriere=frequence_barriere,
+#                                            valeur_barriere=H,
+#                                            methode="Pseudo")
 
-print(result[-1])
+
+temps_sans_numba = timeit.timeit(stmt="autre_simul(nb_simulations, S0, K, d, T)",
+                                 globals=globals(),
+                                 number=100)
+print(f"Temps sans numba : {round(temps_sans_numba, 5)}")
+
+temps_avec_numba = timeit.timeit(stmt="autre_simul_numba(nb_simulations, S0, K, d, T)",
+                                 globals=globals(),
+                                 number=100)
+print(f"Temps sans numba : {round(temps_avec_numba, 5)}")
+
+# result, iterations = autre_simul(nb_simulations, S0, K, d, T)
+
+# print(f"Résultat = {result[-1]}")
 # 1.2564532648137718 avec 1 million de simulations, Call Asiatique
 # 3.441207795600795 avec 1 million de simu, Call EU
 # 3.4409126762138484 avec 1 million de simu, Call down and out
-plt.plot(iterations, result)
-plt.axhline(y=3.441207795600795, color='r')
-plt.savefig("Call_EU.png")
-plt.show()
+# plt.plot(iterations, result)
+# plt.axhline(y=3.441207795600795, color='r')
+# plt.savefig("Call_EU.png")
+# plt.show()
