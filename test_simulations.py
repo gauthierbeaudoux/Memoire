@@ -5,6 +5,7 @@ from tqdm import tqdm
 from scipy.stats import qmc
 import scipy.stats as stats
 import timeit
+import time
 
 
 
@@ -74,6 +75,18 @@ def payoff(S, K, type_payoff, T=1, frequence_barriere="M", valeur_barriere=80):
                             return 0.0
                         i += k
                     return max(S[-1]-K, 0)
+        case "Put down and out":
+            n = len(S)
+            match frequence_barriere:
+                case "M":
+                    k = n//(12*T)
+                    i = k
+                    while i < n:
+                        if S[i] < valeur_barriere:
+                            # print("BARRIERE")
+                            return 0.0
+                        i += k
+                    return max(K-S[-1], 0)
         case "Call down and in":
             n = len(S)
             match frequence_barriere:
@@ -111,37 +124,7 @@ def prix_instant_initial(S0, n, T, r, d, sigma, nb_simulations, K, type_payoff, 
 # exit()
 
 
-S0 = 100
-sigma = 0.1
-r = 0.05
-d = 0.03
-K = 103
-T = 1
-n = 12
-nb_simulations = 10**4
-H = 80
-frequence_barriere = "M"
 
-
-
-
-result, iterations  = prix_instant_initial(S0, n, T, r, d, sigma,
-                                           nb_simulations, K, "Call down and in",
-                                           frequence_mesure=50,
-                                           frequence_barriere=frequence_barriere,
-                                           valeur_barriere=H,
-                                           methode="Pseudo")
-
-
-
-print(f"Résultat = {result[-1]}")
-# 1.2564532648137718 avec 1 million de simulations, Call Asiatique
-# 3.441207795600795 avec 1 million de simu, Call EU
-# 3.4409126762138484 avec 1 million de simu, Call down and out
-plt.plot(iterations, result)
-plt.axhline(y=3.441207795600795, color='r')
-plt.savefig("Call_EU.png")
-plt.show()
 
 
 # temps_sans_numba = timeit.timeit(stmt="autre_simul(nb_simulations, S0, K, d, T)",
@@ -234,7 +217,7 @@ def graph_quasi_random() -> None:
     plt.show()
 
 
-def blackScholes(r, S, K, T, sigma, type="c"):
+def pricing_blackScholes_formula(r, S, K, T, sigma, type="c"):
         "Calculate BS price of call/put"
         d1 = (np.log(S/K) + (r + sigma**2/2)*T)/(sigma*np.sqrt(T))
         d2 = d1 - sigma*np.sqrt(T)
@@ -248,7 +231,7 @@ def blackScholes(r, S, K, T, sigma, type="c"):
             print("Please confirm option type, either 'c' for Call or 'p' for Put!")
 
 
-print(f"{blackScholes(r, S0, K, T, sigma, type='c') = }")
+
 
 def comparaison_cv_quasi_vs_pseudo():
     # Define variables
@@ -257,7 +240,7 @@ def comparaison_cv_quasi_vs_pseudo():
     K = 32
     T = 1
     vol = 0.30
-    bs = blackScholes(r, S0, K, T, vol, type="c")
+    bs = pricing_blackScholes_formula(r, S0, K, T, vol, type="c")
     print('Black Scholes Price', round(bs,3))
 
     results = {
@@ -332,5 +315,52 @@ def comparaison_cv_quasi_vs_pseudo():
     plt.xlabel('Nombre de simulations')
     plt.plot()
     plt.show()
-    
-    
+
+def black_scholes_with_barrier(S, K, T, r, sigma, H):
+    d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    d3 = (np.log(S / H) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+    d4 = d3 - sigma * np.sqrt(T)
+    d5 = (np.log(H**2 / (S * K)) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+    d6 = d5 - sigma * np.sqrt(T)
+
+    call_price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+    knock_in_barrier = S * (H / S)**(2 * (r / (sigma**2) - 0.5)) * norm.cdf(d3) - K * np.exp(-r * T) * (H / S)**(2 * (r / (sigma**2))) * norm.cdf(d4)
+    knock_out_barrier = S * (H / S)**(2 * (r / (sigma**2) - 0.5)) * norm.cdf(d5) - K * np.exp(-r * T) * (H / S)**(2 * (r / (sigma**2))) * norm.cdf(d6)
+
+    return call_price - (knock_out_barrier - knock_in_barrier)
+
+
+S0 = 100
+sigma = 0.1
+r = 0.05
+d = 0.03
+K = 103
+T = 1
+n = 12
+nb_simulations = 10**6
+H = 95
+frequence_barriere = "M"
+type_payoff = "Put down and out"
+
+
+result, iterations  = prix_instant_initial(S0, n, T, r, d, sigma,
+                                           nb_simulations, K, type_payoff,
+                                           frequence_mesure=50,
+                                           frequence_barriere=frequence_barriere,
+                                           valeur_barriere=H,
+                                           methode="Pseudo")
+
+
+# print(f"{pricing_blackScholes_formula(r, S0, K, T, sigma, type='c') = }")
+# print(f"{black_scholes_with_barrier(S0, K, T, r, sigma, H) = }")
+print(f"Résultat = {result[-1]}")
+# 1.2564532648137718 avec 1 million de simulations, Call Asiatique
+# 3.441207795600795 avec 1 million de simu, Call EU
+# 3.4409126762138484 avec 1 million de simu, Call down and out
+plt.plot(iterations, result, label=type_payoff)
+plt.legend()
+# plt.axhline(y=3.441207795600795, color='r')
+plt.savefig(f"{type_payoff}_{nb_simulations}_{H}.png")
+plt.show()
+
