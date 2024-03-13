@@ -5,7 +5,6 @@ from tqdm import tqdm
 from scipy.stats import qmc
 import scipy.stats as stats
 import timeit
-from numba import njit, jit
 
 
 
@@ -103,18 +102,8 @@ def prix_instant_initial(S0, n, T, r, d, sigma, nb_simulations, K, type_payoff, 
             iterations.append(i)
     return prix, iterations
 
-def halton(n, d=1):
-    """
-    Fonction uniforme entre 0 et 1
-    """
-    sampler = qmc.Halton(d, scramble=True)
-    return sampler.random(n)
 
 
-def halton_norm(n, d=1):
-    sampler = qmc.Halton(d, scramble=True)
-    x_halton = sampler.random(n)
-    return stats.norm.ppf(x_halton)
 
 # B = mouvement_brownien_standard(1000,1, methode="Quasi")
 # plt.plot(B)
@@ -129,10 +118,39 @@ d = 0.03
 K = 103
 T = 1
 n = 12
-nb_simulations = 10**5
+nb_simulations = 10**4
 H = 80
 frequence_barriere = "M"
 
+
+
+
+result, iterations  = prix_instant_initial(S0, n, T, r, d, sigma,
+                                           nb_simulations, K, "Call down and in",
+                                           frequence_mesure=50,
+                                           frequence_barriere=frequence_barriere,
+                                           valeur_barriere=H,
+                                           methode="Pseudo")
+
+
+
+print(f"Résultat = {result[-1]}")
+# 1.2564532648137718 avec 1 million de simulations, Call Asiatique
+# 3.441207795600795 avec 1 million de simu, Call EU
+# 3.4409126762138484 avec 1 million de simu, Call down and out
+plt.plot(iterations, result)
+plt.axhline(y=3.441207795600795, color='r')
+plt.savefig("Call_EU.png")
+plt.show()
+
+
+# temps_sans_numba = timeit.timeit(stmt="autre_simul(nb_simulations, S0, K, d, T)",
+#                                  globals=globals(),
+#                                  number=100)
+# print(f"Temps sans numba : {round(temps_sans_numba, 5)}")
+
+
+# result, iterations = autre_simul(nb_simulations, S0, K, d, T)
 
 def autre_simul(nb_simulations, S0, K, d, T):
     #precompute constants
@@ -153,7 +171,6 @@ def autre_simul(nb_simulations, S0, K, d, T):
         
     return result, liste_nb_simu
 
-@jit
 def autre_simul_numba(nb_simulations, S0, K, d, T):
     #precompute constants
     dt = T
@@ -173,32 +190,147 @@ def autre_simul_numba(nb_simulations, S0, K, d, T):
         
     return result, liste_nb_simu
 
+# Partie Pseudo vs Quasi
 
-# result, iterations  = prix_instant_initial(S0, n, T, r, d, sigma,
-#                                            nb_simulations, K, "Call EU",
-#                                            frequence_mesure=50,
-#                                            frequence_barriere=frequence_barriere,
-#                                            valeur_barriere=H,
-#                                            methode="Pseudo")
+def halton(n, d=1):
+    """
+    Fonction uniforme entre 0 et 1
+    """
+    sampler = qmc.Halton(d, scramble=True)
+    return sampler.random(n)
+
+def halton_norm(n, d=1):
+    sampler = qmc.Halton(d, scramble=True)
+    x_halton = sampler.random(n)
+    return stats.norm.ppf(x_halton)
+
+def sobol(m, d=1):
+    sampler = qmc.Sobol(d, scramble=True)
+    return sampler.random_base2(m)
+
+def sobol_norm(m, d=1):
+    sampler = qmc.Sobol(d, scramble=True)
+    x_sobol = sampler.random_base2(m)
+    return stats.norm.ppf(x_sobol)
+
+def graph_pseudo_random() -> None:
+    n = 500
+    x1 = np.random.uniform(0,1,int(n))
+    x2 = np.random.uniform(0,1,int(n))
+
+    plt.scatter(x1,x2, marker='d')
+    plt.show()
+    
+
+def graph_quasi_random() -> None:
+    from scipy.stats import qmc
+
+    def halton(n, d=1):
+        sampler = qmc.Halton(d, scramble=True)
+        return sampler.random(n)
+
+    x = halton(n=500, d=2).T
+    plt.scatter(x[0],x[1], marker='d')
+    plt.show()
 
 
-temps_sans_numba = timeit.timeit(stmt="autre_simul(nb_simulations, S0, K, d, T)",
-                                 globals=globals(),
-                                 number=100)
-print(f"Temps sans numba : {round(temps_sans_numba, 5)}")
+def blackScholes(r, S, K, T, sigma, type="c"):
+        "Calculate BS price of call/put"
+        d1 = (np.log(S/K) + (r + sigma**2/2)*T)/(sigma*np.sqrt(T))
+        d2 = d1 - sigma*np.sqrt(T)
+        try:
+            if type == "c":
+                price = S*stats.norm.cdf(d1, 0, 1) - K*np.exp(-r*T)*stats.norm.cdf(d2, 0, 1)
+            elif type == "p":
+                price = K*np.exp(-r*T)*stats.norm.cdf(-d2, 0, 1) - S*stats.norm.cdf(-d1, 0, 1)
+            return price
+        except:
+            print("Please confirm option type, either 'c' for Call or 'p' for Put!")
 
-temps_avec_numba = timeit.timeit(stmt="autre_simul_numba(nb_simulations, S0, K, d, T)",
-                                 globals=globals(),
-                                 number=100)
-print(f"Temps sans numba : {round(temps_avec_numba, 5)}")
 
-# result, iterations = autre_simul(nb_simulations, S0, K, d, T)
+print(f"{blackScholes(r, S0, K, T, sigma, type='c') = }")
 
-# print(f"Résultat = {result[-1]}")
-# 1.2564532648137718 avec 1 million de simulations, Call Asiatique
-# 3.441207795600795 avec 1 million de simu, Call EU
-# 3.4409126762138484 avec 1 million de simu, Call down and out
-# plt.plot(iterations, result)
-# plt.axhline(y=3.441207795600795, color='r')
-# plt.savefig("Call_EU.png")
-# plt.show()
+def comparaison_cv_quasi_vs_pseudo():
+    # Define variables
+    r = 0.01
+    S0 = 30
+    K = 32
+    T = 1
+    vol = 0.30
+    bs = blackScholes(r, S0, K, T, vol, type="c")
+    print('Black Scholes Price', round(bs,3))
+
+    results = {
+            # 'Pseudo: add_12_uni': [],
+            # 'Pseudo: box_muller': [],
+            # 'Pseudo: polar_rejection:': [],
+            # 'Pseudo: inv_transform': [],
+            'Pseudo : Numpy': [],
+            'Quasi : Halton': [],
+            'Quasi : Sobol': []
+           }
+
+    funcs = {
+            # 'Pseudo: add_12_uni': add_12_uni,
+            # 'Pseudo: box_muller': box_muller,
+            # 'Pseudo: polar_rejection:': polar_rejection,
+            # 'Pseudo: inv_transform': inverse_norm,
+            'Pseudo : Numpy': np.random.standard_normal,
+            'Quasi : Halton': halton_norm,
+            'Quasi : Sobol': sobol_norm
+            }
+
+    numbers = np.linspace(0,4000,21)[1:]
+    # N = 10000
+
+    #precompute constants
+    dt = T
+    nudt = (r - 0.5*vol**2)*dt
+    volsdt = vol*np.sqrt(dt)
+
+    # Monte Carlo Method
+    for M in numbers:
+        M = int(M)
+        for method in results:
+            if method == 'Quasi : Sobol':
+                continue
+            else:
+                Z = funcs[method](M)
+            delta_St = nudt + volsdt*Z
+            ST = S0*np.exp(delta_St)
+            CT = np.maximum(0, ST - K)
+            C0 = np.exp(-r*T)*np.sum(CT)/M
+
+            results[method].append(C0 - bs)
+
+    sobol_rng = np.arange(7,13)
+    for M in sobol_rng:
+        M = int(M)
+
+        Z = funcs['Quasi : Sobol'](M)
+        delta_St = nudt + volsdt*Z
+        ST = S0*np.exp(delta_St)
+        CT = np.maximum(0, ST - K)
+        C0 = np.exp(-r*T)*np.sum(CT)/(2**M)
+
+        results['Quasi : Sobol'].append(C0 - bs)
+
+
+    sigma = np.sqrt( np.sum( (np.exp(-r*T)*CT - C0)**2) / (M-1) )
+    SE = sigma/np.sqrt(M)
+    
+    # Plot
+    plt.figure(figsize=(8,5))
+    for method in results:
+        if method == 'Quasi : Sobol':
+            plt.plot(2**sobol_rng,results[method],label=method,color='k',marker='+')
+        else:
+            plt.plot(numbers,results[method],label=method,marker='+')
+    plt.legend()
+    plt.title('Convergence de Monte-Carlo \n Nombres Pseudo vs Quasi-aléatoire')
+    plt.ylabel('Erreur de pricing relative')
+    plt.xlabel('Nombre de simulations')
+    plt.plot()
+    plt.show()
+    
+    
