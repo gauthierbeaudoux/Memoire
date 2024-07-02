@@ -6,6 +6,7 @@ from scipy.stats import qmc
 import scipy.stats as stats
 import timeit
 import time
+import pandas as pd
 
 
 
@@ -309,6 +310,23 @@ def comparaison_cv_quasi_vs_pseudo():
             plt.plot(2**sobol_rng,results[method],label=method,color='k',marker='+')
         else:
             plt.plot(numbers,results[method],label=method,marker='+')
+    
+    df = pd.DataFrame({
+    "Nb_iterations": numbers,
+    "Pseudo : Numpy": results["Pseudo : Numpy"],
+    "Quasi : Halton": results["Quasi : Halton"],
+    })
+    df.to_csv("Comparaison_finale.xlsx")
+        
+    df_sobol = pd.DataFrame({
+    "Nb_iterations_sobol": 2**sobol_rng,
+    "Quasi : Sobol": results["Quasi : Sobol"],
+    })
+    df_sobol.to_csv("Comparaison_finale_sobol.csv")
+    
+
+
+
     plt.legend()
     plt.title('Convergence de Monte-Carlo \n Nombres Pseudo vs Quasi-aléatoire')
     plt.ylabel('Erreur de pricing relative')
@@ -338,12 +356,13 @@ d = 0.03
 K = 103
 T = 1
 n = 12
-nb_simulations = 10**6
+nb_simulations = 10**5
 H = 95
 frequence_barriere = "M"
 type_payoff = "Put down and out"
 
 
+'''
 result, iterations  = prix_instant_initial(S0, n, T, r, d, sigma,
                                            nb_simulations, K, type_payoff,
                                            frequence_mesure=50,
@@ -355,12 +374,21 @@ result, iterations  = prix_instant_initial(S0, n, T, r, d, sigma,
 # print(f"{pricing_blackScholes_formula(r, S0, K, T, sigma, type='c') = }")
 # print(f"{black_scholes_with_barrier(S0, K, T, r, sigma, H) = }")
 print(f"Résultat = {result[-1]}")
+df = pd.DataFrame({
+    "Nb_iterations": iterations,
+    "Put_down_and_out": result,
+    })
+df.to_csv("Put_down_and_out.csv")
 # 1.2564532648137718 avec 1 million de simulations, Call Asiatique
 # 3.441207795600795 avec 1 million de simu, Call EU
 # 3.4409126762138484 avec 1 million de simu, Call down and out
 plt.plot(iterations, result, label=type_payoff)
 plt.legend()
 # plt.axhline(y=3.441207795600795, color='r')
-plt.savefig(f"{type_payoff}_{nb_simulations}_{H}.png")
+# plt.savefig(f"{type_payoff}_{nb_simulations}_{H}.png")
 plt.show()
+'''
+
+comparaison_cv_quasi_vs_pseudo()
+
 
